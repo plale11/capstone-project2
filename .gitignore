@@ -1,0 +1,11 @@
+# Generated files
+qr_codes/
+*.pyc
+__pycache__/
+.streamlit/
+.env
+.DS_Store
+*.log
+
+# Data files (optional - uncomment if you don't want to track)
+# *.csv
