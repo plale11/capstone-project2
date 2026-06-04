@@ -21,7 +21,7 @@ st.set_page_config(
     }
 )
 
-# Custom CSS for premium glassmorphism effect
+# Custom CSS for premium glassmorphism effect with enhanced glow
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -36,28 +36,68 @@ st.markdown("""
             --accent-pink: #ec4899;
         }
         
-        /* Main page background with animated gradient */
-        .stApp {
-            background: linear-gradient(135deg, #0a0e27 0%, #141b3a 25%, #1a0f3a 50%, #0a1f3a 75%, #0a0e27 100%);
-            background-size: 400% 400%;
-            animation: gradientShift 15s ease infinite;
+        /* Main page background with multiple animated layers */
+        html, body, .stApp {
+            background: #0a0e27 !important;
         }
         
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        .stApp::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 60% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
+            animation: glowShift 8s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        @keyframes glowShift {
+            0% {
+                background: 
+                    radial-gradient(circle at 20% 50%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                    radial-gradient(circle at 60% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
+            }
+            50% {
+                background: 
+                    radial-gradient(circle at 40% 60%, rgba(124, 58, 237, 0.2) 0%, transparent 50%),
+                    radial-gradient(circle at 70% 30%, rgba(59, 130, 246, 0.2) 0%, transparent 50%),
+                    radial-gradient(circle at 30% 70%, rgba(6, 182, 212, 0.15) 0%, transparent 50%);
+            }
+            100% {
+                background: 
+                    radial-gradient(circle at 20% 50%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                    radial-gradient(circle at 60% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
+            }
+        }
+        
+        .stApp {
+            background: linear-gradient(180deg, 
+                rgba(10, 14, 39, 0.95) 0%,
+                rgba(20, 27, 58, 0.95) 25%,
+                rgba(10, 14, 39, 0.95) 50%,
+                rgba(26, 15, 58, 0.95) 75%,
+                rgba(10, 14, 39, 0.95) 100%);
         }
         
         /* Premium glassmorphism containers */
         .glass-container {
-            background: rgba(20, 27, 58, 0.4);
-            backdrop-filter: blur(16px) saturate(150%);
-            border: 1px solid rgba(124, 58, 237, 0.25);
-            border-radius: 20px;
+            background: rgba(20, 27, 58, 0.45);
+            backdrop-filter: blur(18px) saturate(180%);
+            border: 1.5px solid rgba(124, 58, 237, 0.35);
+            border-radius: 22px;
             padding: 28px;
-            box-shadow: 0 8px 48px rgba(124, 58, 237, 0.12), 
-                        inset 0 1px 1px rgba(255, 255, 255, 0.08);
+            box-shadow: 
+                0 12px 50px rgba(124, 58, 237, 0.2),
+                0 0 80px rgba(59, 130, 246, 0.1),
+                inset 0 1px 2px rgba(255, 255, 255, 0.1);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
@@ -70,38 +110,15 @@ st.markdown("""
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-            transition: left 0.5s;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+            transition: left 0.6s ease;
         }
         
         .glass-container:hover::before {
             left: 100%;
         }
         
-        .glass-container:hover {
-            background: rgba(20, 27, 58, 0.5);
-            border: 1px solid rgba(124, 58, 237, 0.4);
-            box-shadow: 0 12px 60px rgba(124, 58, 237, 0.25),
-                        inset 0 1px 1px rgba(255, 255, 255, 0.12);
-            transform: translateY(-4px);
-        }
-        
-        /* Premium title styling */
-        .title-glass {
-            background: rgba(20, 27, 58, 0.5);
-            backdrop-filter: blur(20px) saturate(180%);
-            border: 1.5px solid rgba(124, 58, 237, 0.4);
-            border-radius: 25px;
-            padding: 50px;
-            margin-bottom: 30px;
-            box-shadow: 0 12px 60px rgba(124, 58, 237, 0.15),
-                        inset 0 1px 2px rgba(255, 255, 255, 0.1);
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .title-glass::after {
+        .glass-container::after {
             content: '';
             position: absolute;
             top: -50%;
@@ -109,27 +126,89 @@ st.markdown("""
             width: 200%;
             height: 200%;
             background: radial-gradient(circle, rgba(124, 58, 237, 0.1) 0%, transparent 70%);
-            animation: glow 6s ease-in-out infinite;
-            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.4s ease;
         }
         
-        @keyframes glow {
-            0%, 100% { transform: translate(0, 0); }
-            50% { transform: translate(20px, 20px); }
+        .glass-container:hover::after {
+            animation: containerGlow 1.5s ease-in-out forwards;
+        }
+        
+        @keyframes containerGlow {
+            0% { opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0; }
+        }
+        
+        .glass-container:hover {
+            background: rgba(24, 35, 75, 0.55);
+            border: 1.5px solid rgba(124, 58, 237, 0.55);
+            box-shadow: 
+                0 16px 70px rgba(124, 58, 237, 0.35),
+                0 0 120px rgba(59, 130, 246, 0.2),
+                inset 0 1px 2px rgba(255, 255, 255, 0.15);
+            transform: translateY(-6px);
+        }
+        
+        /* Premium title styling */
+        .title-glass {
+            background: rgba(24, 35, 75, 0.5);
+            backdrop-filter: blur(25px) saturate(200%);
+            border: 2px solid rgba(124, 58, 237, 0.5);
+            border-radius: 28px;
+            padding: 60px;
+            margin-bottom: 30px;
+            box-shadow: 
+                0 20px 80px rgba(124, 58, 237, 0.25),
+                0 0 120px rgba(59, 130, 246, 0.15),
+                inset 0 1px 2px rgba(255, 255, 255, 0.15);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .title-glass::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 30% 50%, rgba(124, 58, 237, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 70% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 40%);
+            animation: titleGlow 4s ease-in-out infinite;
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        @keyframes titleGlow {
+            0%, 100% {
+                background: 
+                    radial-gradient(circle at 30% 50%, rgba(124, 58, 237, 0.15) 0%, transparent 40%),
+                    radial-gradient(circle at 70% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 40%);
+            }
+            50% {
+                background: 
+                    radial-gradient(circle at 40% 60%, rgba(124, 58, 237, 0.25) 0%, transparent 40%),
+                    radial-gradient(circle at 60% 40%, rgba(59, 130, 246, 0.25) 0%, transparent 40%);
+            }
         }
         
         /* Input fields glassmorphism */
         .stFileUploader {
             background: rgba(20, 27, 58, 0.4) !important;
-            border: 1px solid rgba(124, 58, 237, 0.25) !important;
-            border-radius: 16px !important;
-            backdrop-filter: blur(12px) !important;
+            border: 1.5px solid rgba(124, 58, 237, 0.25) !important;
+            border-radius: 18px !important;
+            backdrop-filter: blur(14px) !important;
             transition: all 0.3s ease !important;
+            box-shadow: 0 8px 32px rgba(124, 58, 237, 0.1) !important;
         }
         
         .stFileUploader:hover {
             background: rgba(20, 27, 58, 0.5) !important;
-            border: 1px solid rgba(124, 58, 237, 0.4) !important;
+            border: 1.5px solid rgba(124, 58, 237, 0.4) !important;
+            box-shadow: 0 12px 48px rgba(124, 58, 237, 0.2) !important;
         }
         
         /* Premium buttons */
@@ -142,8 +221,10 @@ st.markdown("""
             font-weight: 600;
             letter-spacing: 0.5px;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35),
-                        inset 0 1px 2px rgba(255, 255, 255, 0.2);
+            box-shadow: 
+                0 12px 32px rgba(124, 58, 237, 0.4),
+                0 0 60px rgba(59, 130, 246, 0.15),
+                inset 0 1px 2px rgba(255, 255, 255, 0.2);
             position: relative;
             overflow: hidden;
         }
@@ -168,8 +249,10 @@ st.markdown("""
         
         .stButton > button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 12px 32px rgba(124, 58, 237, 0.5),
-                        inset 0 1px 2px rgba(255, 255, 255, 0.3);
+            box-shadow: 
+                0 16px 50px rgba(124, 58, 237, 0.6),
+                0 0 80px rgba(59, 130, 246, 0.25),
+                inset 0 1px 2px rgba(255, 255, 255, 0.3);
             background: linear-gradient(135deg, #8b5cf6 0%, #4c9aff 50%, #06d6d4 100%);
         }
         
@@ -180,9 +263,9 @@ st.markdown("""
         /* Data frame styling */
         [data-testid="stDataFrame"] {
             background: rgba(20, 27, 58, 0.4) !important;
-            border-radius: 16px !important;
-            backdrop-filter: blur(12px) !important;
-            box-shadow: 0 8px 32px rgba(124, 58, 237, 0.1) !important;
+            border-radius: 18px !important;
+            backdrop-filter: blur(14px) !important;
+            box-shadow: 0 12px 50px rgba(124, 58, 237, 0.15) !important;
         }
         
         /* Success, warning, error messages */
@@ -246,10 +329,10 @@ st.markdown("""
         /* Metric styling */
         [data-testid="metric-container"] {
             background: rgba(20, 27, 58, 0.4) !important;
-            border: 1px solid rgba(124, 58, 237, 0.25) !important;
-            border-radius: 16px !important;
-            backdrop-filter: blur(12px) !important;
-            box-shadow: 0 8px 32px rgba(124, 58, 237, 0.1) !important;
+            border: 1.5px solid rgba(124, 58, 237, 0.25) !important;
+            border-radius: 18px !important;
+            backdrop-filter: blur(14px) !important;
+            box-shadow: 0 8px 32px rgba(124, 58, 237, 0.15) !important;
         }
         
         /* Smooth transitions for all elements */
