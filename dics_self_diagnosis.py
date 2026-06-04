@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+KST = ZoneInfo("Asia/Seoul")
 
 st.set_page_config(
     page_title="DICS Self-Diagnosis System",
@@ -223,10 +226,11 @@ with st.form(f"diagnosis_form_{st.session_state.form_key}"):
             "Select grade", "Grade 1", "Grade 2", "Grade 3", "Grade 4",
             "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9",
             "Grade 10", "Grade 11", "Grade 12"
-        ]
+        ],
+        disabled=form_disabled
     )
 
-    gender = st.radio("Gender", ["Male", "Female", "Other"])
+    gender = st.radio("Gender", ["Male", "Female", "Other"], disabled=form_disabled)
 
     st.subheader("Basic Health Information")
 
@@ -235,7 +239,8 @@ with st.form(f"diagnosis_form_{st.session_state.form_key}"):
         min_value=100.0,
         max_value=220.0,
         value=170.0,
-        step=1.0
+        step=1.0,
+        disabled=form_disabled
     )
 
     weight_kg = st.number_input(
@@ -243,7 +248,8 @@ with st.form(f"diagnosis_form_{st.session_state.form_key}"):
         min_value=30.0,
         max_value=150.0,
         value=60.0,
-        step=1.0
+        step=1.0,
+        disabled=form_disabled
     )
 
     st.subheader("Lifestyle & Daily Habit Information")
@@ -252,21 +258,24 @@ with st.form(f"diagnosis_form_{st.session_state.form_key}"):
         "Sleep Time Last Night (hours)",
         0,
         12,
-        7
+        7,
+        disabled=form_disabled
     )
 
     screen_time_hours = st.slider(
         "Screen Time Today (hours)",
         0,
         16,
-        4
+        4,
+        disabled=form_disabled
     )
 
     study_hours = st.slider(
         "Study Time Today (hours)",
         0,
         12,
-        3
+        3,
+        disabled=form_disabled
     )
 
     exercise_minutes = st.slider(
@@ -274,32 +283,39 @@ with st.form(f"diagnosis_form_{st.session_state.form_key}"):
         0,
         180,
         30,
-        step=5
+        step=5,
+        disabled=form_disabled
     )
 
     stress_level = st.slider(
         "Stress Level",
         1,
         10,
-        5
+        5,
+        disabled=form_disabled
     )
 
     st.subheader("Select Your Symptoms")
 
-    fever = st.checkbox("Fever")
-    cough = st.checkbox("Cough")
-    sore_throat = st.checkbox("Sore throat")
-    runny_nose = st.checkbox("Runny nose")
-    headache = st.checkbox("Headache")
-    muscle_pain = st.checkbox("Muscle pain")
-    fatigue = st.checkbox("Fatigue")
-    shortness_breath = st.checkbox("Shortness of breath")
-    vomiting = st.checkbox("Vomiting")
-    diarrhea = st.checkbox("Diarrhea")
+    fever = st.checkbox("Fever", disabled=form_disabled)
+    cough = st.checkbox("Cough", disabled=form_disabled)
+    sore_throat = st.checkbox("Sore throat", disabled=form_disabled)
+    runny_nose = st.checkbox("Runny nose", disabled=form_disabled)
+    headache = st.checkbox("Headache", disabled=form_disabled)
+    muscle_pain = st.checkbox("Muscle pain", disabled=form_disabled)
+    fatigue = st.checkbox("Fatigue", disabled=form_disabled)
+    shortness_breath = st.checkbox("Shortness of breath", disabled=form_disabled)
+    vomiting = st.checkbox("Vomiting", disabled=form_disabled)
+    diarrhea = st.checkbox("Diarrhea", disabled=form_disabled)
 
-    submitted = st.form_submit_button("Analyze Health & Lifestyle")
+    submitted = st.form_submit_button(
+        "Analyze Health & Lifestyle",
+        disabled=form_disabled
+    )
 
-if submitted:
+if submitted and not st.session_state.form_locked:
+    student_name = student_name.strip()
+
     if student_name == "" or grade == "Select grade":
         st.error("Please enter your name and grade first.")
 
@@ -404,7 +420,7 @@ if submitted:
         health_score = max(0, min(100, health_score))
 
         new_record = pd.DataFrame([{
-            "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
             "student_name": student_name,
             "grade": grade,
             "gender": gender,
@@ -423,6 +439,8 @@ if submitted:
         records = pd.concat([records, new_record], ignore_index=True)
         records = records.reindex(columns=record_columns)
         records.to_csv(records_file, index=False, encoding="utf-8-sig")
+
+        st.session_state.form_locked = True
 
         st.markdown("---")
         st.subheader(f"{student_name}'s Screening Result")
@@ -555,6 +573,7 @@ st.markdown("---")
 
 if st.button("New Student"):
     st.session_state.form_key += 1
+    st.session_state.form_locked = False
     st.rerun()
 
 st.markdown("---")
