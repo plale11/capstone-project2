@@ -10,11 +10,188 @@ st.set_page_config(
 
 records_file = "screening_records.csv"
 
-if not os.path.exists(records_file):
-    pd.DataFrame(columns=[
-        "time", "student_name", "grade", "gender",
-        "health_score", "top_condition", "top_score"
-    ]).to_csv(records_file, index=False, encoding="utf-8-sig")
+record_columns = [
+    "time", "student_name", "grade", "gender",
+    "health_score", "lifestyle_score", "top_condition", "top_score",
+    "sleep_hours", "screen_time_hours", "study_hours",
+    "exercise_minutes", "stress_level"
+]
+
+
+def initialize_records_file():
+    if not os.path.exists(records_file):
+        pd.DataFrame(columns=record_columns).to_csv(
+            records_file,
+            index=False,
+            encoding="utf-8-sig"
+        )
+    else:
+        records = pd.read_csv(records_file)
+        records = records.reindex(columns=record_columns)
+        records.to_csv(records_file, index=False, encoding="utf-8-sig")
+
+
+def get_level(score):
+    if score >= 80:
+        return "Good"
+    if score >= 60:
+        return "Moderate"
+    return "Needs Improvement"
+
+
+def calculate_lifestyle_scores(
+    sleep_hours,
+    screen_time_hours,
+    study_hours,
+    exercise_minutes,
+    stress_level
+):
+    if sleep_hours >= 8:
+        sleep_score = 25
+    elif sleep_hours >= 7:
+        sleep_score = 22
+    elif sleep_hours >= 6:
+        sleep_score = 16
+    elif sleep_hours >= 5:
+        sleep_score = 10
+    else:
+        sleep_score = 5
+
+    if screen_time_hours <= 2:
+        screen_score = 20
+    elif screen_time_hours <= 4:
+        screen_score = 16
+    elif screen_time_hours <= 6:
+        screen_score = 10
+    else:
+        screen_score = 5
+
+    if exercise_minutes >= 60:
+        exercise_score = 20
+    elif exercise_minutes >= 30:
+        exercise_score = 16
+    elif exercise_minutes >= 10:
+        exercise_score = 10
+    else:
+        exercise_score = 5
+
+    if stress_level <= 3:
+        stress_score = 20
+    elif stress_level <= 6:
+        stress_score = 14
+    elif stress_level <= 8:
+        stress_score = 8
+    else:
+        stress_score = 4
+
+    if 2 <= study_hours <= 5:
+        study_score = 15
+    elif 5 < study_hours <= 8:
+        study_score = 11
+    elif study_hours > 8:
+        study_score = 7
+    elif 1 <= study_hours < 2:
+        study_score = 10
+    else:
+        study_score = 6
+
+    lifestyle_score = (
+        sleep_score + screen_score + exercise_score + stress_score + study_score
+    )
+
+    category_scores = {
+        "Sleep": sleep_score,
+        "Screen Time": screen_score,
+        "Exercise": exercise_score,
+        "Stress": stress_score,
+        "Study Balance": study_score
+    }
+
+    return lifestyle_score, category_scores
+
+
+def build_lifestyle_feedback(
+    sleep_hours,
+    screen_time_hours,
+    study_hours,
+    exercise_minutes,
+    stress_level
+):
+    feedback = []
+    goals = []
+
+    if sleep_hours < 6:
+        feedback.append(
+            "Sleep: Your sleep time is low. Try sleeping 30 minutes earlier this week."
+        )
+        goals.append("Sleep 30 minutes earlier than usual tonight.")
+    elif sleep_hours < 7:
+        feedback.append(
+            "Sleep: Your sleep time is slightly low. A more regular sleep schedule may help your concentration."
+        )
+        goals.append("Keep a fixed bedtime and wake-up time today.")
+    else:
+        feedback.append("Sleep: Your sleep time looks relatively stable.")
+
+    if screen_time_hours > 6:
+        feedback.append(
+            "Screen Time: Your screen time is high. Reducing phone use before sleep may help rest and focus."
+        )
+        goals.append("Avoid phone use for 30 minutes before sleeping.")
+    elif screen_time_hours > 4:
+        feedback.append(
+            "Screen Time: Your screen time is moderate to high. Try adding short screen-free breaks."
+        )
+        goals.append("Take one 20-minute screen-free break today.")
+    else:
+        feedback.append("Screen Time: Your screen time is within a balanced range.")
+
+    if exercise_minutes < 10:
+        feedback.append(
+            "Exercise: Your activity level is low. Even a short walk can support energy and mood."
+        )
+        goals.append("Take a 10-minute walk or stretch today.")
+    elif exercise_minutes < 30:
+        feedback.append(
+            "Exercise: You had some movement today. Try to gradually increase it."
+        )
+        goals.append("Add 10 more minutes of light activity tomorrow.")
+    else:
+        feedback.append("Exercise: Your physical activity looks good today.")
+
+    if stress_level >= 8:
+        feedback.append(
+            "Stress: Your stress level is high. Take breaks and consider talking to a trusted adult or school staff."
+        )
+        goals.append("Do one 5-minute breathing break between study sessions.")
+    elif stress_level >= 6:
+        feedback.append(
+            "Stress: Your stress level is moderate. Short breaks and planning may help."
+        )
+        goals.append("Plan one short rest period after studying.")
+    else:
+        feedback.append("Stress: Your stress level looks manageable today.")
+
+    if study_hours > 8:
+        feedback.append(
+            "Study Balance: Your study time is very high. Long study time without rest can reduce efficiency."
+        )
+        goals.append("Use a 5-minute break after each focused study session.")
+    elif study_hours < 1:
+        feedback.append(
+            "Study Balance: Your study time is low today. Try setting a small, realistic study goal."
+        )
+        goals.append("Complete one focused 25-minute study session.")
+    else:
+        feedback.append("Study Balance: Your study time looks reasonably balanced.")
+
+    if not goals:
+        goals.append("Maintain your current healthy routine tomorrow.")
+
+    return feedback, goals[:3]
+
+
+initialize_records_file()
 
 st.title("DICS Self-Diagnosis System")
 st.write("Health screening application for DICS students.")
@@ -34,7 +211,11 @@ with st.form(f"diagnosis_form_{st.session_state.form_key}"):
 
     grade = st.selectbox(
         "Grade",
-        ["Select grade", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5" , "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"]
+        [
+            "Select grade", "Grade 1", "Grade 2", "Grade 3", "Grade 4",
+            "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9",
+            "Grade 10", "Grade 11", "Grade 12"
+        ]
     )
 
     gender = st.radio("Gender", ["Male", "Female", "Other"])
@@ -57,11 +238,35 @@ with st.form(f"diagnosis_form_{st.session_state.form_key}"):
         step=1.0
     )
 
+    st.subheader("Lifestyle & Daily Habit Information")
+
     sleep_hours = st.slider(
-        "Sleep Hours Last Night",
+        "Sleep Time Last Night (hours)",
         0,
         12,
         7
+    )
+
+    screen_time_hours = st.slider(
+        "Screen Time Today (hours)",
+        0,
+        16,
+        4
+    )
+
+    study_hours = st.slider(
+        "Study Time Today (hours)",
+        0,
+        12,
+        3
+    )
+
+    exercise_minutes = st.slider(
+        "Exercise Time Today (minutes)",
+        0,
+        180,
+        30,
+        step=5
     )
 
     stress_level = st.slider(
@@ -84,7 +289,7 @@ with st.form(f"diagnosis_form_{st.session_state.form_key}"):
     vomiting = st.checkbox("Vomiting")
     diarrhea = st.checkbox("Diarrhea")
 
-    submitted = st.form_submit_button("Analyze Symptoms")
+    submitted = st.form_submit_button("Analyze Health & Lifestyle")
 
 if submitted:
     if student_name == "" or grade == "Select grade":
@@ -161,26 +366,34 @@ if submitted:
         else:
             bmi_category = "Obesity Range"
 
-        health_score = 100
-        health_score -= top_score * 0.4
+        lifestyle_score, category_scores = calculate_lifestyle_scores(
+            sleep_hours,
+            screen_time_hours,
+            study_hours,
+            exercise_minutes,
+            stress_level
+        )
+
+        lifestyle_feedback, today_goals = build_lifestyle_feedback(
+            sleep_hours,
+            screen_time_hours,
+            study_hours,
+            exercise_minutes,
+            stress_level
+        )
+
+        symptom_health_score = 100
+        symptom_health_score -= top_score * 0.4
 
         if bmi_category != "Healthy Weight":
-            health_score -= 10
-
-        if sleep_hours < 6:
-            health_score -= 15
-        elif sleep_hours < 7:
-            health_score -= 8
-
-        if stress_level >= 8:
-            health_score -= 15
-        elif stress_level >= 6:
-            health_score -= 8
+            symptom_health_score -= 10
 
         if shortness_breath:
-            health_score -= 20
+            symptom_health_score -= 20
 
-        health_score = max(0, min(100, int(health_score)))
+        symptom_health_score = max(0, min(100, int(symptom_health_score)))
+        health_score = int((symptom_health_score * 0.6) + (lifestyle_score * 0.4))
+        health_score = max(0, min(100, health_score))
 
         new_record = pd.DataFrame([{
             "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -188,17 +401,20 @@ if submitted:
             "grade": grade,
             "gender": gender,
             "health_score": health_score,
+            "lifestyle_score": lifestyle_score,
             "top_condition": top_disease,
-            "top_score": top_score
+            "top_score": top_score,
+            "sleep_hours": sleep_hours,
+            "screen_time_hours": screen_time_hours,
+            "study_hours": study_hours,
+            "exercise_minutes": exercise_minutes,
+            "stress_level": stress_level
         }])
 
-        new_record.to_csv(
-            records_file,
-            mode="a",
-            header=False,
-            index=False,
-            encoding="utf-8-sig"
-        )
+        records = pd.read_csv(records_file)
+        records = pd.concat([records, new_record], ignore_index=True)
+        records = records.reindex(columns=record_columns)
+        records.to_csv(records_file, index=False, encoding="utf-8-sig")
 
         st.markdown("---")
         st.subheader(f"{student_name}'s Screening Result")
@@ -206,7 +422,17 @@ if submitted:
         st.write("Grade:", grade)
         st.write("Gender:", gender)
 
-        st.subheader("Overall Health Score")
+        st.subheader("Overall Result")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Overall Health Score", f"{health_score}/100")
+        with col2:
+            st.metric("Lifestyle Score", f"{lifestyle_score}/100")
+        with col3:
+            st.metric("Symptom Risk", f"{top_score}%")
+
+        st.progress(health_score / 100)
 
         if health_score >= 80:
             st.success(f"{health_score}/100 - Good Condition")
@@ -217,8 +443,33 @@ if submitted:
 
         st.write(f"BMI: {bmi:.1f}")
         st.write(f"BMI Category: {bmi_category}")
-        st.write(f"Sleep Hours: {sleep_hours} hours")
-        st.write(f"Stress Level: {stress_level}/10")
+
+        st.subheader("Lifestyle Category Scores")
+
+        chart_df = pd.DataFrame({
+            "Category": list(category_scores.keys()),
+            "Score": list(category_scores.values())
+        }).set_index("Category")
+
+        st.bar_chart(chart_df)
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.write(f"Sleep: {sleep_hours} hours")
+            st.write(f"Screen Time: {screen_time_hours} hours")
+            st.write(f"Study Time: {study_hours} hours")
+        with c2:
+            st.write(f"Exercise Time: {exercise_minutes} minutes")
+            st.write(f"Stress Level: {stress_level}/10")
+            st.write(f"Lifestyle Level: {get_level(lifestyle_score)}")
+
+        st.subheader("Lifestyle Feedback")
+        for item in lifestyle_feedback:
+            st.write("- " + item)
+
+        st.subheader("Today's Improvement Goals")
+        for goal in today_goals:
+            st.write("✅ " + goal)
 
         st.subheader("Disease Possibility")
 
@@ -233,7 +484,7 @@ if submitted:
         for disease, score in sorted_results[1:]:
             st.write(f"{disease}: {score}%")
 
-        st.subheader("Detailed Feedback")
+        st.subheader("Health Feedback")
 
         if health_score >= 80:
             st.success("Your overall condition appears stable based on the information you entered.")
@@ -248,16 +499,6 @@ if submitted:
             st.info("Your BMI is above the general healthy range. Regular physical activity and balanced eating habits may help.")
         elif bmi_category == "Obesity Range":
             st.warning("Your BMI is in a higher range. This is not a diagnosis, but professional health guidance may be helpful.")
-
-        if sleep_hours < 6:
-            st.warning("Your sleep time is low. Lack of sleep can affect concentration, immune function, and recovery.")
-        elif sleep_hours < 7:
-            st.info("Your sleep time is slightly low. Try to maintain a more regular sleep schedule.")
-
-        if stress_level >= 8:
-            st.warning("Your stress level is high. Taking breaks, reducing screen time before sleep, and talking to a trusted adult may help.")
-        elif stress_level >= 6:
-            st.info("Your stress level is moderate. Continue monitoring your mental and physical condition.")
 
         if shortness_breath:
             st.error("Shortness of breath can be a serious warning sign. Please visit the school nurse or seek medical help immediately.")
@@ -312,6 +553,7 @@ st.markdown("---")
 st.subheader("Screening Records")
 
 records = pd.read_csv(records_file)
+records = records.reindex(columns=record_columns)
 
 if records.empty:
     st.info("No students have been screened yet.")
@@ -320,9 +562,11 @@ else:
         col1, col2 = st.columns([4, 1])
 
         with col1:
+            lifestyle_display = row.get("lifestyle_score", "N/A")
             st.write(
                 f"{row['time']} | {row['student_name']} | "
-                f"{row['grade']} | Score: {row['health_score']} | "
+                f"{row['grade']} | Health: {row['health_score']} | "
+                f"Lifestyle: {lifestyle_display} | "
                 f"{row['top_condition']} ({row['top_score']}%)"
             )
 
@@ -333,10 +577,11 @@ else:
                 st.rerun()
 
 if st.button("Clear All Screening Records"):
-    pd.DataFrame(columns=[
-        "time", "student_name", "grade", "gender",
-        "health_score", "top_condition", "top_score"
-    ]).to_csv(records_file, index=False, encoding="utf-8-sig")
+    pd.DataFrame(columns=record_columns).to_csv(
+        records_file,
+        index=False,
+        encoding="utf-8-sig"
+    )
 
     st.success("All screening records cleared.")
     st.rerun()
