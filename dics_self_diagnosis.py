@@ -206,8 +206,16 @@ st.markdown("---")
 if "form_key" not in st.session_state:
     st.session_state.form_key = 0
 
+if "form_locked" not in st.session_state:
+    st.session_state.form_locked = False
+
+ form_disabled = st.session_state.form_locked
+
 with st.form(f"diagnosis_form_{st.session_state.form_key}"):
-    student_name = st.text_input("Student Name")
+   student_name = st.text_input(
+    "Student Name",
+    disabled=form_disabled
+)
 
     grade = st.selectbox(
         "Grade",
