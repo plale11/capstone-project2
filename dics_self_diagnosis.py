@@ -194,7 +194,291 @@ def build_lifestyle_feedback(
     return feedback, goals[:3]
 
 
+def calculate_screening_result(data):
+    cold_score = 0
+    flu_score = 0
+    covid_score = 0
+    allergy_score = 0
+    stomach_flu_score = 0
+
+    if data["fever"]:
+        flu_score += 25
+        covid_score += 20
+        stomach_flu_score += 10
+
+    if data["cough"]:
+        cold_score += 25
+        flu_score += 15
+        covid_score += 20
+
+    if data["sore_throat"]:
+        cold_score += 20
+        flu_score += 10
+        covid_score += 10
+
+    if data["runny_nose"]:
+        cold_score += 25
+        allergy_score += 30
+
+    if data["headache"]:
+        flu_score += 15
+        covid_score += 10
+
+    if data["muscle_pain"]:
+        flu_score += 25
+        covid_score += 10
+
+    if data["fatigue"]:
+        flu_score += 20
+        covid_score += 15
+        stomach_flu_score += 10
+
+    if data["shortness_breath"]:
+        covid_score += 30
+
+    if data["vomiting"]:
+        stomach_flu_score += 35
+
+    if data["diarrhea"]:
+        stomach_flu_score += 35
+
+    results = {
+        "Common Cold": cold_score,
+        "Flu": flu_score,
+        "COVID-19-like Symptoms": covid_score,
+        "Allergic Rhinitis": allergy_score,
+        "Stomach Flu / Gastroenteritis": stomach_flu_score
+    }
+
+    sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)
+    top_disease, top_score = sorted_results[0]
+
+    height_m = data["height_cm"] / 100
+    bmi = data["weight_kg"] / (height_m ** 2)
+
+    if bmi < 18.5:
+        bmi_category = "Underweight"
+    elif bmi < 25:
+        bmi_category = "Healthy Weight"
+    elif bmi < 30:
+        bmi_category = "Overweight"
+    else:
+        bmi_category = "Obesity Range"
+
+    lifestyle_score, category_scores = calculate_lifestyle_scores(
+        data["sleep_hours"],
+        data["screen_time_hours"],
+        data["study_hours"],
+        data["exercise_minutes"],
+        data["stress_level"]
+    )
+
+    lifestyle_feedback, today_goals = build_lifestyle_feedback(
+        data["sleep_hours"],
+        data["screen_time_hours"],
+        data["study_hours"],
+        data["exercise_minutes"],
+        data["stress_level"]
+    )
+
+    symptom_health_score = 100
+    symptom_health_score -= top_score * 0.4
+
+    if bmi_category != "Healthy Weight":
+        symptom_health_score -= 10
+
+    if data["shortness_breath"]:
+        symptom_health_score -= 20
+
+    symptom_health_score = max(0, min(100, int(symptom_health_score)))
+    health_score = int((symptom_health_score * 0.6) + (lifestyle_score * 0.4))
+    health_score = max(0, min(100, health_score))
+
+    return {
+        **data,
+        "health_score": health_score,
+        "lifestyle_score": lifestyle_score,
+        "top_disease": top_disease,
+        "top_score": top_score,
+        "bmi": bmi,
+        "bmi_category": bmi_category,
+        "category_scores": category_scores,
+        "lifestyle_feedback": lifestyle_feedback,
+        "today_goals": today_goals,
+        "sorted_results": sorted_results
+    }
+
+
+def save_record(result):
+    new_record = pd.DataFrame([{
+        "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
+        "student_name": result["student_name"],
+        "grade": result["grade"],
+        "gender": result["gender"],
+        "health_score": result["health_score"],
+        "lifestyle_score": result["lifestyle_score"],
+        "top_condition": result["top_disease"],
+        "top_score": result["top_score"],
+        "sleep_hours": result["sleep_hours"],
+        "screen_time_hours": result["screen_time_hours"],
+        "study_hours": result["study_hours"],
+        "exercise_minutes": result["exercise_minutes"],
+        "stress_level": result["stress_level"]
+    }])
+
+    records = pd.read_csv(records_file)
+    records = pd.concat([records, new_record], ignore_index=True)
+    records = records.reindex(columns=record_columns)
+    records.to_csv(records_file, index=False, encoding="utf-8-sig")
+
+
+def show_result(result):
+    st.markdown("---")
+    st.subheader(f"{result['student_name']}'s Screening Result")
+
+    st.write("Grade:", result["grade"])
+    st.write("Gender:", result["gender"])
+
+    st.subheader("Overall Result")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Overall Health Score", f"{result['health_score']}/100")
+    with col2:
+        st.metric("Lifestyle Score", f"{result['lifestyle_score']}/100")
+    with col3:
+        st.metric("Symptom Risk", f"{result['top_score']}%")
+
+    st.progress(result["health_score"] / 100)
+
+    if result["health_score"] >= 80:
+        st.success(f"{result['health_score']}/100 - Good Condition")
+    elif result["health_score"] >= 60:
+        st.warning(f"{result['health_score']}/100 - Moderate Risk")
+    else:
+        st.error(f"{result['health_score']}/100 - High Risk")
+
+    st.write(f"BMI: {result['bmi']:.1f}")
+    st.write(f"BMI Category: {result['bmi_category']}")
+
+    st.subheader("Lifestyle Category Scores")
+
+    chart_df = pd.DataFrame({
+        "Category": list(result["category_scores"].keys()),
+        "Score": list(result["category_scores"].values())
+    }).set_index("Category")
+
+    st.bar_chart(chart_df)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.write(f"Sleep: {result['sleep_hours']} hours")
+        st.write(f"Screen Time: {result['screen_time_hours']} hours")
+        st.write(f"Study Time: {result['study_hours']} hours")
+    with c2:
+        st.write(f"Exercise Time: {result['exercise_minutes']} minutes")
+        st.write(f"Stress Level: {result['stress_level']}/10")
+        st.write(f"Lifestyle Level: {get_level(result['lifestyle_score'])}")
+
+    st.subheader("Lifestyle Feedback")
+    for item in result["lifestyle_feedback"]:
+        st.write("- " + item)
+
+    st.subheader("Today's Improvement Goals")
+    for goal in result["today_goals"]:
+        st.write("✅ " + goal)
+
+    st.subheader("Disease Possibility")
+
+    if result["top_score"] >= 70:
+        st.error(f"Most likely condition: {result['top_disease']}: {result['top_score']}%")
+    elif result["top_score"] >= 40:
+        st.warning(f"Most likely condition: {result['top_disease']}: {result['top_score']}%")
+    else:
+        st.info(f"Most likely condition: {result['top_disease']}: {result['top_score']}%")
+
+    st.write("Other possibilities:")
+    for disease, score in result["sorted_results"][1:]:
+        st.write(f"{disease}: {score}%")
+
+    st.subheader("Health Feedback")
+
+    if result["health_score"] >= 80:
+        st.success("Your overall condition appears stable based on the information you entered.")
+    elif result["health_score"] >= 60:
+        st.warning("Some risk factors were detected. Monitor your symptoms, rest well, and stay hydrated.")
+    else:
+        st.error("Several risk factors were detected. Please consider visiting the school nurse or a healthcare professional.")
+
+    if result["bmi_category"] == "Underweight":
+        st.info("Your BMI is below the general healthy range. Regular meals and balanced nutrition may be helpful.")
+    elif result["bmi_category"] == "Overweight":
+        st.info("Your BMI is above the general healthy range. Regular physical activity and balanced eating habits may help.")
+    elif result["bmi_category"] == "Obesity Range":
+        st.warning("Your BMI is in a higher range. This is not a diagnosis, but professional health guidance may be helpful.")
+
+    if result["shortness_breath"]:
+        st.error("Shortness of breath can be a serious warning sign. Please visit the school nurse or seek medical help immediately.")
+
+    st.subheader("Symptom-Based Suggestions")
+
+    if result["fever"]:
+        st.write("- Fever: Drink plenty of water, rest, and monitor your temperature. If fever is high or lasts more than 2 days, visit the school nurse or a doctor.")
+
+    if result["cough"]:
+        st.write("- Cough: Drink warm fluids, avoid cold drinks, and wear a mask to reduce spreading infection.")
+
+    if result["sore_throat"]:
+        st.write("- Sore throat: Warm water gargling and voice rest may help. If pain is severe, seek medical advice.")
+
+    if result["runny_nose"]:
+        st.write("- Runny nose: It may be related to a cold or allergy. Avoid dust and stay hydrated.")
+
+    if result["headache"]:
+        st.write("- Headache: Rest in a quiet place, drink water, and reduce screen time.")
+
+    if result["muscle_pain"]:
+        st.write("- Muscle pain: Avoid intense physical activity and rest until symptoms improve.")
+
+    if result["fatigue"]:
+        st.write("- Fatigue: Sleep, hydration, and balanced meals are important for recovery.")
+
+    if result["vomiting"]:
+        st.write("- Vomiting: Drink small amounts of water frequently. Avoid heavy meals until symptoms improve.")
+
+    if result["diarrhea"]:
+        st.write("- Diarrhea: Hydration is very important. Avoid greasy food and dairy products temporarily.")
+
+    if not any([
+        result["fever"], result["cough"], result["sore_throat"], result["runny_nose"],
+        result["headache"], result["muscle_pain"], result["fatigue"],
+        result["shortness_breath"], result["vomiting"], result["diarrhea"]
+    ]):
+        st.info("No major symptoms were selected. Continue maintaining healthy habits and monitor your condition.")
+
+    st.caption(
+        "This result is not a medical diagnosis. "
+        "Please consult a healthcare professional for accurate diagnosis and treatment."
+    )
+
+
+def reset_for_new_student():
+    st.session_state.form_key += 1
+    st.session_state.form_locked = False
+    st.session_state.latest_result = None
+    st.rerun()
+
+
 initialize_records_file()
+
+if "form_key" not in st.session_state:
+    st.session_state.form_key = 0
+
+if "form_locked" not in st.session_state:
+    st.session_state.form_locked = False
+
+if "latest_result" not in st.session_state:
+    st.session_state.latest_result = None
 
 st.title("DICS Self-Diagnosis System")
 st.write("Health screening application for DICS students.")
@@ -204,377 +488,136 @@ st.warning(
     "It does not provide medical diagnosis or prescription."
 )
 
-st.markdown("---")
+if st.session_state.form_locked and st.session_state.latest_result is not None:
+    st.info("Result saved. Click 'New Student' before entering another student's information.")
+    show_result(st.session_state.latest_result)
 
-if "form_key" not in st.session_state:
-    st.session_state.form_key = 0
+    st.markdown("---")
+    if st.button("New Student"):
+        reset_for_new_student()
 
-if "form_locked" not in st.session_state:
-    st.session_state.form_locked = False
+else:
+    st.markdown("---")
 
-form_disabled = st.session_state.form_locked
-
-with st.form(f"diagnosis_form_{st.session_state.form_key}"):
-    student_name = st.text_input(
-        "Student Name",
-        disabled=form_disabled
-    )
-    
-    grade = st.selectbox(
-        "Grade",
-        [
-            "Select grade", "Grade 1", "Grade 2", "Grade 3", "Grade 4",
-            "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9",
-            "Grade 10", "Grade 11", "Grade 12"
-        ],
-        disabled=form_disabled
-    )
-
-    gender = st.radio("Gender", ["Male", "Female", "Other"], disabled=form_disabled)
-
-    st.subheader("Basic Health Information")
-
-    height_cm = st.number_input(
-        "Height (cm)",
-        min_value=100.0,
-        max_value=220.0,
-        value=170.0,
-        step=1.0,
-        disabled=form_disabled
-    )
-
-    weight_kg = st.number_input(
-        "Weight (kg)",
-        min_value=30.0,
-        max_value=150.0,
-        value=60.0,
-        step=1.0,
-        disabled=form_disabled
-    )
-
-    st.subheader("Lifestyle & Daily Habit Information")
-
-    sleep_hours = st.slider(
-        "Sleep Time Last Night (hours)",
-        0,
-        12,
-        7,
-        disabled=form_disabled
-    )
-
-    screen_time_hours = st.slider(
-        "Screen Time Today (hours)",
-        0,
-        16,
-        4,
-        disabled=form_disabled
-    )
-
-    study_hours = st.slider(
-        "Study Time Today (hours)",
-        0,
-        12,
-        3,
-        disabled=form_disabled
-    )
-
-    exercise_minutes = st.slider(
-        "Exercise Time Today (minutes)",
-        0,
-        180,
-        30,
-        step=5,
-        disabled=form_disabled
-    )
-
-    stress_level = st.slider(
-        "Stress Level",
-        1,
-        10,
-        5,
-        disabled=form_disabled
-    )
-
-    st.subheader("Select Your Symptoms")
-
-    fever = st.checkbox("Fever", disabled=form_disabled)
-    cough = st.checkbox("Cough", disabled=form_disabled)
-    sore_throat = st.checkbox("Sore throat", disabled=form_disabled)
-    runny_nose = st.checkbox("Runny nose", disabled=form_disabled)
-    headache = st.checkbox("Headache", disabled=form_disabled)
-    muscle_pain = st.checkbox("Muscle pain", disabled=form_disabled)
-    fatigue = st.checkbox("Fatigue", disabled=form_disabled)
-    shortness_breath = st.checkbox("Shortness of breath", disabled=form_disabled)
-    vomiting = st.checkbox("Vomiting", disabled=form_disabled)
-    diarrhea = st.checkbox("Diarrhea", disabled=form_disabled)
-
-    submitted = st.form_submit_button(
-        "Analyze Health & Lifestyle",
-        disabled=form_disabled
-    )
-
-if submitted and not st.session_state.form_locked:
-    student_name = student_name.strip()
-
-    if student_name == "" or grade == "Select grade":
-        st.error("Please enter your name and grade first.")
-
-    else:
-        cold_score = 0
-        flu_score = 0
-        covid_score = 0
-        allergy_score = 0
-        stomach_flu_score = 0
-
-        if fever:
-            flu_score += 25
-            covid_score += 20
-            stomach_flu_score += 10
-
-        if cough:
-            cold_score += 25
-            flu_score += 15
-            covid_score += 20
-
-        if sore_throat:
-            cold_score += 20
-            flu_score += 10
-            covid_score += 10
-
-        if runny_nose:
-            cold_score += 25
-            allergy_score += 30
-
-        if headache:
-            flu_score += 15
-            covid_score += 10
-
-        if muscle_pain:
-            flu_score += 25
-            covid_score += 10
-
-        if fatigue:
-            flu_score += 20
-            covid_score += 15
-            stomach_flu_score += 10
-
-        if shortness_breath:
-            covid_score += 30
-
-        if vomiting:
-            stomach_flu_score += 35
-
-        if diarrhea:
-            stomach_flu_score += 35
-
-        results = {
-            "Common Cold": cold_score,
-            "Flu": flu_score,
-            "COVID-19-like Symptoms": covid_score,
-            "Allergic Rhinitis": allergy_score,
-            "Stomach Flu / Gastroenteritis": stomach_flu_score
-        }
-
-        sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)
-        top_disease, top_score = sorted_results[0]
-
-        height_m = height_cm / 100
-        bmi = weight_kg / (height_m ** 2)
-
-        if bmi < 18.5:
-            bmi_category = "Underweight"
-        elif bmi < 25:
-            bmi_category = "Healthy Weight"
-        elif bmi < 30:
-            bmi_category = "Overweight"
-        else:
-            bmi_category = "Obesity Range"
-
-        lifestyle_score, category_scores = calculate_lifestyle_scores(
-            sleep_hours,
-            screen_time_hours,
-            study_hours,
-            exercise_minutes,
-            stress_level
+    with st.form(f"diagnosis_form_{st.session_state.form_key}"):
+        student_name = st.text_input("Student Name")
+        
+        grade = st.selectbox(
+            "Grade",
+            [
+                "Select grade", "Grade 1", "Grade 2", "Grade 3", "Grade 4",
+                "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9",
+                "Grade 10", "Grade 11", "Grade 12"
+            ]
         )
 
-        lifestyle_feedback, today_goals = build_lifestyle_feedback(
-            sleep_hours,
-            screen_time_hours,
-            study_hours,
-            exercise_minutes,
-            stress_level
+        gender = st.radio("Gender", ["Male", "Female", "Other"])
+
+        st.subheader("Basic Health Information")
+
+        height_cm = st.number_input(
+            "Height (cm)",
+            min_value=100.0,
+            max_value=220.0,
+            value=170.0,
+            step=1.0
         )
 
-        symptom_health_score = 100
-        symptom_health_score -= top_score * 0.4
-
-        if bmi_category != "Healthy Weight":
-            symptom_health_score -= 10
-
-        if shortness_breath:
-            symptom_health_score -= 20
-
-        symptom_health_score = max(0, min(100, int(symptom_health_score)))
-        health_score = int((symptom_health_score * 0.6) + (lifestyle_score * 0.4))
-        health_score = max(0, min(100, health_score))
-
-        new_record = pd.DataFrame([{
-            "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
-            "student_name": student_name,
-            "grade": grade,
-            "gender": gender,
-            "health_score": health_score,
-            "lifestyle_score": lifestyle_score,
-            "top_condition": top_disease,
-            "top_score": top_score,
-            "sleep_hours": sleep_hours,
-            "screen_time_hours": screen_time_hours,
-            "study_hours": study_hours,
-            "exercise_minutes": exercise_minutes,
-            "stress_level": stress_level
-        }])
-
-        records = pd.read_csv(records_file)
-        records = pd.concat([records, new_record], ignore_index=True)
-        records = records.reindex(columns=record_columns)
-        records.to_csv(records_file, index=False, encoding="utf-8-sig")
-
-        st.session_state.form_locked = True
-
-        st.markdown("---")
-        st.subheader(f"{student_name}'s Screening Result")
-
-        st.write("Grade:", grade)
-        st.write("Gender:", gender)
-
-        st.subheader("Overall Result")
-
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Overall Health Score", f"{health_score}/100")
-        with col2:
-            st.metric("Lifestyle Score", f"{lifestyle_score}/100")
-        with col3:
-            st.metric("Symptom Risk", f"{top_score}%")
-
-        st.progress(health_score / 100)
-
-        if health_score >= 80:
-            st.success(f"{health_score}/100 - Good Condition")
-        elif health_score >= 60:
-            st.warning(f"{health_score}/100 - Moderate Risk")
-        else:
-            st.error(f"{health_score}/100 - High Risk")
-
-        st.write(f"BMI: {bmi:.1f}")
-        st.write(f"BMI Category: {bmi_category}")
-
-        st.subheader("Lifestyle Category Scores")
-
-        chart_df = pd.DataFrame({
-            "Category": list(category_scores.keys()),
-            "Score": list(category_scores.values())
-        }).set_index("Category")
-
-        st.bar_chart(chart_df)
-
-        c1, c2 = st.columns(2)
-        with c1:
-            st.write(f"Sleep: {sleep_hours} hours")
-            st.write(f"Screen Time: {screen_time_hours} hours")
-            st.write(f"Study Time: {study_hours} hours")
-        with c2:
-            st.write(f"Exercise Time: {exercise_minutes} minutes")
-            st.write(f"Stress Level: {stress_level}/10")
-            st.write(f"Lifestyle Level: {get_level(lifestyle_score)}")
-
-        st.subheader("Lifestyle Feedback")
-        for item in lifestyle_feedback:
-            st.write("- " + item)
-
-        st.subheader("Today's Improvement Goals")
-        for goal in today_goals:
-            st.write("✅ " + goal)
-
-        st.subheader("Disease Possibility")
-
-        if top_score >= 70:
-            st.error(f"Most likely condition: {top_disease}: {top_score}%")
-        elif top_score >= 40:
-            st.warning(f"Most likely condition: {top_disease}: {top_score}%")
-        else:
-            st.info(f"Most likely condition: {top_disease}: {top_score}%")
-
-        st.write("Other possibilities:")
-        for disease, score in sorted_results[1:]:
-            st.write(f"{disease}: {score}%")
-
-        st.subheader("Health Feedback")
-
-        if health_score >= 80:
-            st.success("Your overall condition appears stable based on the information you entered.")
-        elif health_score >= 60:
-            st.warning("Some risk factors were detected. Monitor your symptoms, rest well, and stay hydrated.")
-        else:
-            st.error("Several risk factors were detected. Please consider visiting the school nurse or a healthcare professional.")
-
-        if bmi_category == "Underweight":
-            st.info("Your BMI is below the general healthy range. Regular meals and balanced nutrition may be helpful.")
-        elif bmi_category == "Overweight":
-            st.info("Your BMI is above the general healthy range. Regular physical activity and balanced eating habits may help.")
-        elif bmi_category == "Obesity Range":
-            st.warning("Your BMI is in a higher range. This is not a diagnosis, but professional health guidance may be helpful.")
-
-        if shortness_breath:
-            st.error("Shortness of breath can be a serious warning sign. Please visit the school nurse or seek medical help immediately.")
-
-        st.subheader("Symptom-Based Suggestions")
-
-        if fever:
-            st.write("- Fever: Drink plenty of water, rest, and monitor your temperature. If fever is high or lasts more than 2 days, visit the school nurse or a doctor.")
-
-        if cough:
-            st.write("- Cough: Drink warm fluids, avoid cold drinks, and wear a mask to reduce spreading infection.")
-
-        if sore_throat:
-            st.write("- Sore throat: Warm water gargling and voice rest may help. If pain is severe, seek medical advice.")
-
-        if runny_nose:
-            st.write("- Runny nose: It may be related to a cold or allergy. Avoid dust and stay hydrated.")
-
-        if headache:
-            st.write("- Headache: Rest in a quiet place, drink water, and reduce screen time.")
-
-        if muscle_pain:
-            st.write("- Muscle pain: Avoid intense physical activity and rest until symptoms improve.")
-
-        if fatigue:
-            st.write("- Fatigue: Sleep, hydration, and balanced meals are important for recovery.")
-
-        if vomiting:
-            st.write("- Vomiting: Drink small amounts of water frequently. Avoid heavy meals until symptoms improve.")
-
-        if diarrhea:
-            st.write("- Diarrhea: Hydration is very important. Avoid greasy food and dairy products temporarily.")
-
-        if not any([
-            fever, cough, sore_throat, runny_nose, headache,
-            muscle_pain, fatigue, shortness_breath, vomiting, diarrhea
-        ]):
-            st.info("No major symptoms were selected. Continue maintaining healthy habits and monitor your condition.")
-
-        st.caption(
-            "This result is not a medical diagnosis. "
-            "Please consult a healthcare professional for accurate diagnosis and treatment."
+        weight_kg = st.number_input(
+            "Weight (kg)",
+            min_value=30.0,
+            max_value=150.0,
+            value=60.0,
+            step=1.0
         )
 
-st.markdown("---")
+        st.subheader("Lifestyle & Daily Habit Information")
 
-if st.button("New Student"):
-    st.session_state.form_key += 1
-    st.session_state.form_locked = False
-    st.rerun()
+        sleep_hours = st.slider(
+            "Sleep Time Last Night (hours)",
+            0,
+            12,
+            7
+        )
+
+        screen_time_hours = st.slider(
+            "Screen Time Today (hours)",
+            0,
+            16,
+            4
+        )
+
+        study_hours = st.slider(
+            "Study Time Today (hours)",
+            0,
+            12,
+            3
+        )
+
+        exercise_minutes = st.slider(
+            "Exercise Time Today (minutes)",
+            0,
+            180,
+            30,
+            step=5
+        )
+
+        stress_level = st.slider(
+            "Stress Level",
+            1,
+            10,
+            5
+        )
+
+        st.subheader("Select Your Symptoms")
+
+        fever = st.checkbox("Fever")
+        cough = st.checkbox("Cough")
+        sore_throat = st.checkbox("Sore throat")
+        runny_nose = st.checkbox("Runny nose")
+        headache = st.checkbox("Headache")
+        muscle_pain = st.checkbox("Muscle pain")
+        fatigue = st.checkbox("Fatigue")
+        shortness_breath = st.checkbox("Shortness of breath")
+        vomiting = st.checkbox("Vomiting")
+        diarrhea = st.checkbox("Diarrhea")
+
+        submitted = st.form_submit_button("Analyze Health & Lifestyle")
+
+    if submitted:
+        student_name = student_name.strip()
+
+        if student_name == "" or grade == "Select grade":
+            st.error("Please enter your name and grade first.")
+
+        else:
+            result = calculate_screening_result({
+                "student_name": student_name,
+                "grade": grade,
+                "gender": gender,
+                "height_cm": height_cm,
+                "weight_kg": weight_kg,
+                "sleep_hours": sleep_hours,
+                "screen_time_hours": screen_time_hours,
+                "study_hours": study_hours,
+                "exercise_minutes": exercise_minutes,
+                "stress_level": stress_level,
+                "fever": fever,
+                "cough": cough,
+                "sore_throat": sore_throat,
+                "runny_nose": runny_nose,
+                "headache": headache,
+                "muscle_pain": muscle_pain,
+                "fatigue": fatigue,
+                "shortness_breath": shortness_breath,
+                "vomiting": vomiting,
+                "diarrhea": diarrhea
+            })
+
+            save_record(result)
+            st.session_state.latest_result = result
+            st.session_state.form_locked = True
+            st.rerun()
 
 st.markdown("---")
 st.subheader("Screening Records")
