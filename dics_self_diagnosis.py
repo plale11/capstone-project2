@@ -499,7 +499,7 @@ if st.session_state.form_locked and st.session_state.latest_result is not None:
 else:
     st.markdown("---")
 
-    with st.form(f"diagnosis_form_{st.session_state.form_key}"):
+    with st.form(f"diagnosis_form_{st.session_state.form_key}", enter_to_submit=False):
         student_name = st.text_input("Student Name")
         
         grade = st.selectbox(
